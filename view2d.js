@@ -25,7 +25,7 @@ import {
   openingCenter,
   syncLeaves,
 } from "./openings.js?v=20261022f";
-import { addBreaker, addOutlet, addPanel, drawPower, hitPower, placeAnchor, symbolById } from "./power.js?v=20261026d";
+import { addBreaker, addOutlet, addPanel, drawPower, hitPower, placeAnchor, symbolById } from "./power.js?v=20261027m";
 import { snapValue, uid } from "./store.js?v=20261022l";
 import { seatItems, shiftGuests } from "./surface.js?v=20261022l";
 
@@ -82,7 +82,7 @@ export function createView2d(canvas, store, ui) {
   function draw() {
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = "#cfd3d8";
+    ctx.fillStyle = "#e4eeea";
     ctx.fillRect(0, 0, rect.width, rect.height);
     drawGrid(rect);
     const plan = store.get();
@@ -144,7 +144,7 @@ export function createView2d(canvas, store, ui) {
     const a = screen(underlay.x, underlay.y);
     const b = screen(underlay.x + underlay.w, underlay.y + underlay.h);
     ctx.save();
-    ctx.strokeStyle = "#1d6fd4";
+    ctx.strokeStyle = "#0060b0";
     ctx.lineWidth = 2;
     ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
     ctx.fillStyle = "#ffffff";
@@ -188,7 +188,7 @@ export function createView2d(canvas, store, ui) {
     if (room.floorFinish && room.floorFinish !== "床") ctx.fillText(room.floorFinish, label.x, label.y + 26);
     if (selected("room", room.id)) {
       ctx.save();
-      ctx.strokeStyle = "#1d6fd4";
+      ctx.strokeStyle = "#0060b0";
       ctx.lineWidth = 2;
       traceOutline(outline);
       ctx.stroke();
@@ -227,7 +227,7 @@ export function createView2d(canvas, store, ui) {
     if (ui.wallPick?.roomId !== room.id || ui.wallPick.edgeIndex == null) return;
     const edge = edgeGeometry(room, ui.wallPick.edgeIndex);
     ctx.save();
-    ctx.strokeStyle = "#1d6fd4";
+    ctx.strokeStyle = "#0060b0";
     ctx.lineWidth = 3;
     const a = screen(edge.a.x, edge.a.y);
     const b = screen(edge.b.x, edge.b.y);
@@ -284,8 +284,8 @@ export function createView2d(canvas, store, ui) {
       const at = screen(room.points[index].x, room.points[index].y);
       const on = ui.wallPick?.roomId === room.id && ui.wallPick.vertexIndex === index;
       ctx.beginPath();
-      ctx.fillStyle = on ? "#1d6fd4" : "#ffffff";
-      ctx.strokeStyle = "#1d6fd4";
+      ctx.fillStyle = on ? "#0060b0" : "#ffffff";
+      ctx.strokeStyle = "#0060b0";
       ctx.lineWidth = 2;
       ctx.arc(at.x, at.y, on ? 7 : 5, 0, Math.PI * 2);
       ctx.fill();
@@ -391,7 +391,7 @@ export function createView2d(canvas, store, ui) {
       const b = screen(...coords(wall.pointAt(center.along + half)));
       const on = selected("opening", opening.id);
       ctx.save();
-      ctx.strokeStyle = on ? "#1d6fd4" : "rgba(20,24,32,0.7)";
+      ctx.strokeStyle = on ? "#0060b0" : "rgba(20,24,32,0.7)";
       ctx.lineWidth = on ? 3 : 2;
       const hasLeaf = (plan.items || []).some((entry) => entry.openingId === opening.id);
       if (opening.sill >= 80) {
@@ -421,7 +421,7 @@ export function createView2d(canvas, store, ui) {
     const cat = lookupItem(entry.catalogId, plan.customItems);
     const swing = cat?.swing || (entry.leaf === "window" ? "window" : "single");
     ctx.save();
-    ctx.strokeStyle = selected("item", entry.id) || selected("opening", opening.id) ? "#1d6fd4" : (entry.color || "#8a5a32");
+    ctx.strokeStyle = selected("item", entry.id) || selected("opening", opening.id) ? "#0060b0" : (entry.color || "#8a5a32");
     ctx.lineWidth = 2;
     if (swing === "window") {
       strokeAlong(center, wall, opening.w, 0, 0);
@@ -480,7 +480,7 @@ export function createView2d(canvas, store, ui) {
     const d = entry.d * cam.scale;
     const pad = entry.hostId ? Math.min(70, Math.max(30, Math.min(entry.w, entry.d) * 0.06)) * cam.scale : 0;
     ctx.fillStyle = entry.color || cat?.color || "#888";
-    ctx.strokeStyle = selected("item", entry.id) ? "#1d6fd4" : "rgba(0,0,0,0.45)";
+    ctx.strokeStyle = selected("item", entry.id) ? "#0060b0" : "rgba(0,0,0,0.45)";
     ctx.lineWidth = selected("item", entry.id) ? 2 : 1;
     ctx.fillRect(-w / 2 + pad, -d / 2 + pad, Math.max(1, w - pad * 2), Math.max(1, d - pad * 2));
     ctx.strokeRect(-w / 2 + pad, -d / 2 + pad, Math.max(1, w - pad * 2), Math.max(1, d - pad * 2));
@@ -506,7 +506,7 @@ export function createView2d(canvas, store, ui) {
   }
 
   function strokeRect(x, y, w, h) {
-    ctx.strokeStyle = "#1d6fd4";
+    ctx.strokeStyle = "#0060b0";
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
   }
@@ -518,7 +518,7 @@ export function createView2d(canvas, store, ui) {
     const h = Math.abs(current.y - start.y);
     const a = screen(x, y);
     const b = screen(x + w, y + h);
-    ctx.strokeStyle = "#1d6fd4";
+    ctx.strokeStyle = "#0060b0";
     ctx.setLineDash([6, 4]);
     ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
     ctx.setLineDash([]);

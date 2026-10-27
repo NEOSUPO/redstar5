@@ -10,7 +10,7 @@ import {
 export async function writeWorkbook(book) {
   const ExcelJS = lib();
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "NEOSUPO★STAR β4";
+  workbook.creator = "NEOSUPO★STAR β5";
   writePairs(workbook, SHEET.PROJECT, book.projectPairs);
   writeObjects(workbook, SHEET.EQUIPMENT, EQUIPMENT_HEADERS, book.equipment);
   writeObjects(workbook, SHEET.LAYOUT, LAYOUT_HEADERS, book.layout);

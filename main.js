@@ -3,15 +3,59 @@ import { insertPoint, removePoint, roomArea, scaleRoom, setEdgeArc } from "./geo
 import { ROOM_TYPES, categoryTree, lookupItem } from "./catalog.js";
 import { readTables, writeWorkbook } from "./excelio.js?v=20261026d";
 import { attachLeaf, clampOpenings, hingeForHand, noteRemovedVertex, resizeOpening, splitEdgeOpenings } from "./openings.js?v=20261022f";
-import { bindPower, powerPanel } from "./power.js?v=20261026d";
+import { bindPower, powerPanel } from "./power.js?v=20261027m";
 import { createStore, uid } from "./store.js?v=20261026d";
 import { seatItems } from "./surface.js?v=20261022l";
-import { createView2d } from "./view2d.js?v=20261026d";
+import { createView2d } from "./view2d.js?v=20261027m";
 
 const store = createStore();
 const ui = createController();
 const sidebar = document.querySelector("#sidebar");
 const view2d = createView2d(document.querySelector("#view2d"), store, ui);
+const FOLD_KEY = "neosupo-star-beta5-folds";
+
+function readFolds() {
+  try {
+    return JSON.parse(localStorage.getItem(FOLD_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function resizeViews() {
+  requestAnimationFrame(() => {
+    view2d.resize();
+    view3d?.resize();
+  });
+}
+
+function setFold(kind, folded) {
+  const saved = readFolds();
+  saved[kind] = folded;
+  localStorage.setItem(FOLD_KEY, JSON.stringify(saved));
+  if (kind === "menu") {
+    document.querySelector(".workspace").classList.toggle("menu-folded", folded);
+    const button = document.querySelector("#fold-menu");
+    button.setAttribute("aria-expanded", String(!folded));
+    button.textContent = folded ? "パネル" : "パネルを閉じる";
+  } else {
+    document.querySelector("#float-tools").classList.toggle("folded", folded);
+    const button = document.querySelector("#fold-tools");
+    button.setAttribute("aria-expanded", String(!folded));
+    button.textContent = folded ? "操作" : "しまう";
+  }
+  resizeViews();
+}
+
+const storedFolds = readFolds();
+if (storedFolds.menu) setFold("menu", true);
+if (storedFolds.tools) setFold("tools", true);
+document.querySelector("#fold-menu").addEventListener("click", () => {
+  setFold("menu", !document.querySelector(".workspace").classList.contains("menu-folded"));
+});
+document.querySelector("#fold-tools").addEventListener("click", () => {
+  setFold("tools", !document.querySelector("#float-tools").classList.contains("folded"));
+});
 let view3d = null;
 let tab = "layout";
 let mode = "2d";
@@ -32,8 +76,14 @@ document.querySelector("#fit").addEventListener("click", () => {
   if (mode === "3d") view3d?.fit();
   else view2d.fit();
 });
-document.querySelector("#zoom-in").addEventListener("click", () => view2d.zoomBy(1.2));
-document.querySelector("#zoom-out").addEventListener("click", () => view2d.zoomBy(0.8));
+document.querySelector("#zoom-in").addEventListener("click", () => {
+  if (mode === "3d") view3d?.zoomBy(1.2);
+  else view2d.zoomBy(1.2);
+});
+document.querySelector("#zoom-out").addEventListener("click", () => {
+  if (mode === "3d") view3d?.zoomBy(0.8);
+  else view2d.zoomBy(0.8);
+});
 document.querySelector("#undo").addEventListener("click", () => store.undo());
 document.querySelector("#redo").addEventListener("click", () => store.redo());
 document.querySelector("#snap").addEventListener("change", (event) => {
@@ -48,6 +98,10 @@ document.querySelector("#sky").addEventListener("click", () => {
 document.querySelector("#walk").addEventListener("click", () => {
   view3d?.setMode("walk");
   markViewMode("walk");
+});
+document.querySelector("#doors").addEventListener("click", () => {
+  if (!view3d) return;
+  markDoors(view3d.toggleDoors());
 });
 document.querySelector("#new-plan").addEventListener("click", () => document.querySelector("#dialog-new").showModal());
 document.querySelector("#new-cancel").addEventListener("click", () => document.querySelector("#dialog-new").close());
@@ -130,7 +184,7 @@ async function setMode(next) {
   document.querySelector("#mode-3d").classList.toggle("active", next === "3d");
   document.querySelector("#view-toggle").hidden = next !== "3d";
   if (next === "3d" && !view3d) {
-    const mod = await import("./view3d.js?v=20261022p");
+    const mod = await import("./view3d.js?v=20261027p");
     view3d = mod.createView3d(document.querySelector("#view3d"), store, ui);
     view3d.setSelection(ui.selection);
   }
@@ -139,8 +193,21 @@ async function setMode(next) {
 }
 
 function markViewMode(next) {
-  document.querySelector("#sky").classList.toggle("active", next !== "walk");
-  document.querySelector("#walk").classList.toggle("active", next === "walk");
+  const walking = next === "walk";
+  document.querySelector("#sky").classList.toggle("active", !walking);
+  document.querySelector("#walk").classList.toggle("active", walking);
+  const help = document.querySelector("#view-help");
+  if (!help) return;
+  help.textContent = walking
+    ? "カーソルで移動（Ctrl押しながら左右で視点移動）Shiftで早く移動"
+    : "ドラッグで見下ろします。右ドラッグで図面を移動し、ホイールと拡大・縮小で寄り引きします。";
+}
+
+function markDoors(open) {
+  const button = document.querySelector("#doors");
+  if (!button) return;
+  button.textContent = open ? "ドアを閉じる" : "ドアを開く";
+  button.setAttribute("aria-pressed", open ? "true" : "false");
 }
 
 function syncChrome(plan) {
@@ -247,6 +314,19 @@ function layoutPanel() {
   const underlay = plan.underlay;
   return `
     <div class="side-block">
+      <h2>部屋</h2>
+      <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
+      ${rooms}
+    </div>
+    <div class="side-block">
+      <h2>開口</h2>
+      <p class="note">壁をクリックして穴を作ります。同じ線上で重なる隣室の壁も一緒に開きます。複製はできません。</p>
+      <button type="button" data-opening="full" class="${ui.tool === "opening" && ui.openingPreset === "full" ? "active" : ""}">壁抜き</button>
+      <button type="button" data-opening="hole" class="${ui.tool === "opening" && ui.openingPreset === "hole" ? "active" : ""}">開口部</button>
+      <button type="button" data-opening="waist" class="${ui.tool === "opening" && ui.openingPreset === "waist" ? "active" : ""}">腰壁</button>
+      <button type="button" id="measure" class="${ui.tool === "measure" ? "active" : ""}">計測</button>
+    </div>
+    <div class="side-block">
       <h2>グリッド</h2>
       <label>モジュール
         <select id="module">
@@ -263,19 +343,6 @@ function layoutPanel() {
         </select>
       </label>
       <p class="note">スナップは壁厚の半分（${(Number(plan.settings.wall) || 150) / 2}mm）です。マス目の線にも止まります。</p>
-    </div>
-    <div class="side-block">
-      <h2>部屋タイプ</h2>
-      <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
-      ${rooms}
-    </div>
-    <div class="side-block">
-      <h2>開口</h2>
-      <p class="note">壁をクリックして穴を作ります。同じ線上で重なる隣室の壁も一緒に開きます。複製はできません。</p>
-      <button type="button" data-opening="full" class="${ui.tool === "opening" && ui.openingPreset === "full" ? "active" : ""}">壁抜き</button>
-      <button type="button" data-opening="hole" class="${ui.tool === "opening" && ui.openingPreset === "hole" ? "active" : ""}">開口部</button>
-      <button type="button" data-opening="waist" class="${ui.tool === "opening" && ui.openingPreset === "waist" ? "active" : ""}">腰壁</button>
-      <button type="button" id="measure" class="${ui.tool === "measure" ? "active" : ""}">計測</button>
     </div>
     <div class="side-block">
       <h2>下絵</h2>

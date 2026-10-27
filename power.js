@@ -566,7 +566,7 @@ export function drawPower(ctx, plan, ui, screen, scale) {
       const from = breakerAnchor(ctx, plan, breaker, screen, scale);
       const to = screen(outlet.x, outlet.y);
       ctx.save();
-      ctx.strokeStyle = "#1d4f91";
+      ctx.strokeStyle = "#0060b0";
       ctx.lineWidth = 2;
       ctx.setLineDash([7, 5]);
       ctx.beginPath();
@@ -577,21 +577,11 @@ export function drawPower(ctx, plan, ui, screen, scale) {
     }
     if (breaker) {
       const at = screen(outlet.x, outlet.y);
-      ctx.fillStyle = "#1d4f91";
+      ctx.fillStyle = "#0060b0";
       ctx.font = "12px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(String(breaker.number), at.x, at.y - Math.max(14, 180 * scale) - 2);
     }
-  }
-  for (const itemId of focus.items) {
-    const item = (plan.items || []).find((row) => row.id === itemId);
-    if (!item) continue;
-    const at = screen(item.x, item.y);
-    ctx.save();
-    ctx.strokeStyle = "#1d4f91";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(at.x - 18, at.y - 18, 36, 36);
-    ctx.restore();
   }
 }
 
@@ -609,7 +599,7 @@ function drawPanel(ctx, plan, panel, screen, scale, focus, activeBreaker) {
   const body = frames.body;
   ctx.save();
   ctx.fillStyle = focus.panels.has(panel.id) ? "#e7f0fb" : "#fff";
-  ctx.strokeStyle = focus.panels.has(panel.id) ? "#1d4f91" : "#243040";
+  ctx.strokeStyle = focus.panels.has(panel.id) ? "#0060b0" : "#243040";
   ctx.lineWidth = 2;
   ctx.fillRect(body.x, body.y, body.w, body.h);
   ctx.strokeRect(body.x, body.y, body.w, body.h);
@@ -643,7 +633,7 @@ function drawPanel(ctx, plan, panel, screen, scale, focus, activeBreaker) {
 function drawBreakerRow(ctx, rect, on) {
   ctx.save();
   ctx.fillStyle = on ? "#e7f0fb" : "#fff";
-  ctx.strokeStyle = on ? "#1d4f91" : "#8e98a3";
+  ctx.strokeStyle = on ? "#0060b0" : "#8e98a3";
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   ctx.fillStyle = "#243040";
@@ -661,7 +651,7 @@ function drawOutlet(ctx, outlet, screen, scale, on, warn) {
   ctx.translate(at.x, at.y);
   ctx.rotate(outlet.rotation || 0);
   ctx.fillStyle = "#fff";
-  ctx.strokeStyle = on ? "#1d4f91" : PINK;
+  ctx.strokeStyle = on ? "#0060b0" : PINK;
   ctx.lineWidth = on ? 3 : 2;
   if (outlet.kind === "flush") {
     ctx.beginPath();

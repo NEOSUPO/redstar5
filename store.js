@@ -3,7 +3,7 @@ import { migrateOpenings } from "./openings.js?v=20261022f";
 import { normalizePower } from "./power.js?v=20261026d";
 import { clearMissingHosts } from "./surface.js";
 
-const STORAGE_KEY = "neosupo-star-beta4-plans-v1";
+const STORAGE_KEY = "neosupo-star-beta5-plans-v1";
 
 export function createStore() {
   const listeners = new Set();

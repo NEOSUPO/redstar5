@@ -10,7 +10,9 @@ const BRIGHTNESS = [0.45, 0.85, 1.25];
 
 export function createView3d(canvas, store, ui) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  renderer.setClearColor(0xd5dbe3);
+  const map = document.querySelector("#walk-map");
+  const mapCtx = map?.getContext("2d");
+  renderer.setClearColor(0xe4eeea);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, 1, 10, 200000);
   camera.position.set(8000, 6000, 8000);
@@ -26,10 +28,18 @@ export function createView3d(canvas, store, ui) {
   const root = new THREE.Group();
   scene.add(root);
   let mode = "sky";
+  let walk = null;
+  let look = null;
+  const held = new Set();
+  let turnModifier = false;
   let underlayKey = "";
   let underlayTexture = null;
   let selection = null;
   let spin = null;
+  let spinGroup = null;
+  let doorAmount = 1;
+  let doorTarget = 1;
+  const doorLeaves = [];
   let slide = null;
   let blank = null;
   const raycaster = new THREE.Raycaster();
@@ -47,6 +57,8 @@ export function createView3d(canvas, store, ui) {
   }
 
   function rebuild() {
+    spinGroup = null;
+    doorLeaves.length = 0;
     while (root.children.length) root.remove(root.children[0]);
     const plan = store.get();
     const level = BRIGHTNESS[plan.settings.brightness] ?? BRIGHTNESS[1];
@@ -170,14 +182,17 @@ export function createView3d(canvas, store, ui) {
         new THREE.BoxGeometry(opening.w * 0.92, leafH, 36),
         new THREE.MeshLambertMaterial({ color: entry.color || "#d7c4a8" }),
       );
+      const openX = center.x + Math.cos(tangent) * shift + wall.nx * 40;
+      const openZ = center.y + Math.sin(tangent) * shift + wall.ny * 40;
       mesh.position.set(
-        center.x + Math.cos(tangent) * shift + wall.nx * 40,
+        center.x + (openX - center.x) * doorAmount,
         y,
-        center.y + Math.sin(tangent) * shift + wall.ny * 40,
+        center.y + (openZ - center.y) * doorAmount,
       );
       mesh.rotation.y = -tangent;
       tag(mesh, { pick: "opening", id: opening.id }, chosen("opening", opening.id));
       root.add(mesh);
+      doorLeaves.push({ kind: "slide", mesh, x0: center.x, z0: center.y, x1: openX, z1: openZ, y });
       return;
     }
     const hinges = swing === "double" ? ["start", "end"] : [entry.hinge === "end" ? "end" : "start"];
@@ -187,7 +202,7 @@ export function createView3d(canvas, store, ui) {
       const hp = hingePoint(room, opening, hinge);
       const group = new THREE.Group();
       group.position.set(hp.x, y, hp.y);
-      group.rotation.y = -pose.open;
+      group.rotation.y = -(pose.closed + pose.delta * doorAmount);
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(leafW, leafH, 36),
         new THREE.MeshLambertMaterial({ color: entry.color || "#c9a27a" }),
@@ -196,12 +211,15 @@ export function createView3d(canvas, store, ui) {
       tag(mesh, { pick: "opening", id: opening.id }, chosen("opening", opening.id));
       group.add(mesh);
       root.add(group);
+      doorLeaves.push({ kind: "swing", group, closed: pose.closed, delta: pose.delta });
     }
   }
 
   function addSpin(entry, plan, ceiling) {
     const radius = Math.max(entry.w, entry.d) * 0.5 + 220;
     const y = itemBaseY(entry, plan, ceiling) + 30;
+    const group = new THREE.Group();
+    group.userData.itemId = entry.id;
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(radius, 70, 8, 56),
       new THREE.MeshBasicMaterial({ color: 0x1d6fd4, depthTest: false, transparent: true, opacity: 0.92 }),
@@ -210,7 +228,7 @@ export function createView3d(canvas, store, ui) {
     ring.position.set(entry.x, y, entry.y);
     ring.renderOrder = 3;
     tag(ring, { pick: "spin", id: entry.id }, false);
-    root.add(ring);
+    group.add(ring);
     const nub = new THREE.Mesh(
       new THREE.SphereGeometry(110, 12, 8),
       new THREE.MeshBasicMaterial({ color: 0x1d6fd4, depthTest: false }),
@@ -219,7 +237,34 @@ export function createView3d(canvas, store, ui) {
     nub.position.set(entry.x + Math.cos(ang) * radius, y, entry.y + Math.sin(ang) * radius);
     nub.renderOrder = 4;
     tag(nub, { pick: "spin", id: entry.id }, false);
-    root.add(nub);
+    group.add(nub);
+    root.add(group);
+    spinGroup = group;
+    syncSpinRoom();
+  }
+
+  function syncSpinRoom() {
+    if (!spinGroup) return;
+    if (mode !== "walk" || !walk) {
+      spinGroup.visible = true;
+      return;
+    }
+    const plan = store.get();
+    const entry = (plan.items || []).find((row) => row.id === spinGroup.userData.itemId);
+    spinGroup.visible = !!entry && sameRoomAsViewer(entry, plan, walk.x, walk.z);
+  }
+
+  function sameRoomAsViewer(entry, plan, x, z) {
+    const itemRoom = roomFor(entry, plan);
+    let here = null;
+    for (let i = (plan.rooms || []).length - 1; i >= 0; i -= 1) {
+      if (pointInRoom(plan.rooms[i], x, z)) {
+        here = plan.rooms[i];
+        break;
+      }
+    }
+    if (!itemRoom || !here) return false;
+    return itemRoom.id === here.id;
   }
 
   function itemBaseY(entry, plan, ceiling) {
@@ -239,7 +284,7 @@ export function createView3d(canvas, store, ui) {
   function tag(mesh, data, on) {
     mesh.userData = data;
     if (on && mesh.material?.emissive) {
-      mesh.material.emissive.set("#1d6fd4");
+      mesh.material.emissive.set("#0060b0");
       mesh.material.emissiveIntensity = 0.35;
     }
   }
@@ -256,6 +301,13 @@ export function createView3d(canvas, store, ui) {
     const hits = raycaster.intersectObjects(root.children, true);
     for (const hit of hits) {
       let obj = hit.object;
+      let visible = true;
+      let cursor = obj;
+      while (cursor && cursor !== root) {
+        if (!cursor.visible) visible = false;
+        cursor = cursor.parent;
+      }
+      if (!visible) continue;
       while (obj && obj !== root) {
         if (obj.userData?.pick) return obj.userData;
         obj = obj.parent;
@@ -278,6 +330,7 @@ export function createView3d(canvas, store, ui) {
     spin = null;
     slide = null;
     blank = null;
+    look = null;
     if (doneSlide && !doneSlide.pending) {
       store.mutate((draft) => {
         const guests = draft.items.filter((item) => item.hostId === doneSlide.id).map((item) => item.id);
@@ -482,20 +535,257 @@ export function createView3d(canvas, store, ui) {
     image.src = href;
   }
 
-  function frame() {
+  function eyeY(x, z) {
+    const plan = store.get();
+    let lift = 0;
+    for (const room of plan.rooms || []) {
+      if (pointInRoom(room, x, z)) lift = Math.max(lift, Number(room.raisedFloor) || 0);
+    }
+    return 1600 + lift;
+  }
+
+  function applyWalk() {
+    if (!walk) return;
+    const eye = eyeY(walk.x, walk.z);
+    const dist = 3000;
+    const cp = Math.cos(walk.pitch);
+    camera.position.set(walk.x, eye, walk.z);
+    controls.target.set(
+      walk.x + Math.sin(walk.yaw) * cp * dist,
+      eye + Math.sin(walk.pitch) * dist,
+      walk.z + Math.cos(walk.yaw) * cp * dist,
+    );
+    camera.lookAt(controls.target);
+    syncSpinRoom();
+  }
+
+  function walkFromCamera() {
+    const faceX = controls.target.x - camera.position.x;
+    const faceZ = controls.target.z - camera.position.z;
+    const horiz = Math.hypot(faceX, faceZ) || 1;
+    return {
+      x: camera.position.x,
+      z: camera.position.z,
+      yaw: Math.atan2(faceX, faceZ),
+      pitch: clamp(Math.atan2(controls.target.y - camera.position.y, horiz), -1.05, 0.7),
+    };
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - (frame.last || now)) / 1000);
+    if (mode === "walk" && walk && held.size) {
+      const turnLeft = held.has("q") || (turnModifier && held.has("arrowleft"));
+      const turnRight = held.has("e") || (turnModifier && held.has("arrowright"));
+      let forward = 0;
+      let side = 0;
+      if (held.has("w") || held.has("arrowup")) forward += 1;
+      if (held.has("s") || held.has("arrowdown")) forward -= 1;
+      if (!turnRight && (held.has("d") || held.has("arrowright"))) side += 1;
+      if (!turnLeft && (held.has("a") || held.has("arrowleft"))) side -= 1;
+      const len = Math.hypot(forward, side);
+      if (len) {
+        const speed = (held.has("shift") ? 4200 : 1800) * dt;
+        walk.x += (Math.sin(walk.yaw) * forward - Math.cos(walk.yaw) * side) / len * speed;
+        walk.z += (Math.cos(walk.yaw) * forward + Math.sin(walk.yaw) * side) / len * speed;
+      }
+      if (turnLeft) walk.yaw += 1.5 * dt;
+      if (turnRight) walk.yaw -= 1.5 * dt;
+      if (len || turnLeft || turnRight) applyWalk();
+    }
+    if (doorLeaves.length && Math.abs(doorAmount - doorTarget) > 0.001) {
+      const step = 1.8 * dt;
+      doorAmount = doorAmount < doorTarget ? Math.min(doorTarget, doorAmount + step) : Math.max(doorTarget, doorAmount - step);
+      poseDoors();
+    }
+    frame.last = now;
     renderer.render(scene, camera);
+    syncWalkMap();
     requestAnimationFrame(frame);
   }
 
+  function poseDoors() {
+    for (const leaf of doorLeaves) {
+      if (leaf.kind === "swing") {
+        leaf.group.rotation.y = -(leaf.closed + leaf.delta * doorAmount);
+        continue;
+      }
+      leaf.mesh.position.set(
+        leaf.x0 + (leaf.x1 - leaf.x0) * doorAmount,
+        leaf.y,
+        leaf.z0 + (leaf.z1 - leaf.z0) * doorAmount,
+      );
+    }
+  }
+
+  function toggleDoors() {
+    doorTarget = doorTarget < 0.5 ? 1 : 0;
+    return doorTarget === 1;
+  }
+
+  function syncWalkMap() {
+    if (!map) return;
+    const show = mode === "walk" && walk && !canvas.hidden;
+    map.hidden = !show;
+    if (show) drawWalkMap();
+  }
+
+  function mapProjection() {
+    const width = map.clientWidth || 200;
+    const height = map.clientHeight || 150;
+    const plan = store.get();
+    const rooms = plan.rooms || [];
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const room of rooms) {
+      minX = Math.min(minX, room.x);
+      minY = Math.min(minY, room.y);
+      maxX = Math.max(maxX, room.x + room.w);
+      maxY = Math.max(maxY, room.y + room.h);
+    }
+    if (!Number.isFinite(minX)) {
+      minX = walk.x - 4000;
+      minY = walk.z - 3000;
+      maxX = walk.x + 4000;
+      maxY = walk.z + 3000;
+    }
+    const margin = 14;
+    const spanX = Math.max(maxX - minX, 1);
+    const spanY = Math.max(maxY - minY, 1);
+    const scale = Math.min((width - margin * 2) / spanX, (height - margin * 2) / spanY);
+    const originX = (width - spanX * scale) / 2;
+    const originY = (height - spanY * scale) / 2;
+    return {
+      width,
+      height,
+      plan,
+      rooms,
+      minX,
+      minY,
+      scale,
+      originX,
+      originY,
+      sx: (x) => originX + (x - minX) * scale,
+      sy: (y) => originY + (y - minY) * scale,
+    };
+  }
+
+  function drawWalkMap() {
+    const dpr = window.devicePixelRatio || 1;
+    const frame = mapProjection();
+    const { width, height, plan, rooms, scale, sx, sy } = frame;
+    const bitmapW = Math.max(1, Math.floor(width * dpr));
+    const bitmapH = Math.max(1, Math.floor(height * dpr));
+    if (map.width !== bitmapW || map.height !== bitmapH) {
+      map.width = bitmapW;
+      map.height = bitmapH;
+    }
+    mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mapCtx.clearRect(0, 0, width, height);
+    mapCtx.fillStyle = "#e6ebf1";
+    mapCtx.fillRect(0, 0, width, height);
+    for (const room of rooms) {
+      const outline = outlinePoints(room, 180);
+      if (outline.length < 3) continue;
+      mapCtx.beginPath();
+      outline.forEach((point, index) => {
+        const x = sx(point.x);
+        const y = sy(point.y);
+        if (index === 0) mapCtx.moveTo(x, y);
+        else mapCtx.lineTo(x, y);
+      });
+      mapCtx.closePath();
+      mapCtx.fillStyle = room.floorColor || room.color || "#f7f4ee";
+      mapCtx.fill();
+      mapCtx.lineJoin = "round";
+      mapCtx.lineWidth = Math.max(1.5, (Number(plan.settings?.wall) || 150) * scale);
+      mapCtx.strokeStyle = room.wallColor || "#8e98a3";
+      mapCtx.stroke();
+    }
+    for (const entry of plan.items || []) {
+      const itemW = Number(entry.w) || 0;
+      const itemD = Number(entry.d) || 0;
+      if (itemW < 40 || itemD < 40) continue;
+      const cat = lookupItem(entry.catalogId, plan.customItems);
+      mapCtx.save();
+      mapCtx.translate(sx(entry.x), sy(entry.y));
+      mapCtx.rotate(((Number(entry.rot) || 0) * Math.PI) / 180);
+      mapCtx.fillStyle = entry.color || cat?.color || "#8d97a3";
+      mapCtx.fillRect((-itemW * scale) / 2, (-itemD * scale) / 2, itemW * scale, itemD * scale);
+      mapCtx.restore();
+    }
+    for (const room of rooms) {
+      if (room.w * scale < 42 || room.h * scale < 18 || !room.name) continue;
+      const center = centroid(room);
+      mapCtx.save();
+      mapCtx.beginPath();
+      mapCtx.rect(sx(room.x) + 2, sy(room.y) + 2, Math.max(0, room.w * scale - 4), Math.max(0, room.h * scale - 4));
+      mapCtx.clip();
+      mapCtx.fillStyle = "#243040";
+      mapCtx.font = "10px sans-serif";
+      mapCtx.textAlign = "center";
+      mapCtx.textBaseline = "middle";
+      mapCtx.fillText(room.name, sx(center.x), sy(center.y));
+      mapCtx.restore();
+    }
+    const px = sx(walk.x);
+    const py = sy(walk.z);
+    const aim = 16;
+    mapCtx.beginPath();
+    mapCtx.moveTo(px, py);
+    mapCtx.lineTo(px + Math.sin(walk.yaw) * aim, py + Math.cos(walk.yaw) * aim);
+    mapCtx.strokeStyle = "#d40000";
+    mapCtx.lineWidth = 2;
+    mapCtx.stroke();
+    drawStar(mapCtx, px, py);
+  }
+
+  map?.addEventListener("pointerdown", (event) => {
+    if (mode !== "walk" || !walk || canvas.hidden) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = map.getBoundingClientRect();
+    const frame = mapProjection();
+    walk.x = frame.minX + (event.clientX - rect.left - frame.originX) / frame.scale;
+    walk.z = frame.minY + (event.clientY - rect.top - frame.originY) / frame.scale;
+    applyWalk();
+    syncWalkMap();
+  });
+
   function setMode(next) {
+    const enteringWalk = next === "walk" && mode !== "walk";
     mode = next;
     if (mode === "walk") {
-      camera.position.set(controls.target.x + 400, 1600, controls.target.z + 400);
-      controls.maxPolarAngle = Math.PI * 0.85;
-    } else {
-      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.enabled = false;
+      if (enteringWalk) {
+        const faceX = controls.target.x - camera.position.x;
+        const faceZ = controls.target.z - camera.position.z;
+        const yaw = Math.atan2(faceX, faceZ);
+        const back = 1800;
+        walk = {
+          x: controls.target.x - Math.sin(yaw) * back,
+          z: controls.target.z - Math.cos(yaw) * back,
+          yaw,
+          pitch: -0.08,
+        };
+      } else if (!walk) walk = walkFromCamera();
+      applyWalk();
+      syncWalkMap();
+      return;
     }
-    controls.update();
+    const stand = walk;
+    walk = null;
+    look = null;
+    controls.enabled = true;
+    controls.maxPolarAngle = Math.PI * 0.49;
+    if (stand) {
+      controls.target.set(stand.x, 0, stand.z);
+      camera.position.set(stand.x + 3200, 4200, stand.z + 3200);
+      controls.update();
+    }
+    syncWalkMap();
+    syncSpinRoom();
   }
 
   function fit() {
@@ -514,6 +804,18 @@ export function createView3d(canvas, store, ui) {
     const cx = (minX + maxX) / 2;
     const cz = (minY + maxY) / 2;
     const span = Math.max(maxX - minX, maxY - minY, 2000);
+    if (mode === "walk") {
+      const x = minX + Math.min(1200, span * 0.2);
+      const z = minY + Math.min(1200, span * 0.2);
+      walk = {
+        x,
+        z,
+        yaw: Math.atan2(cx - x, cz - z),
+        pitch: -0.08,
+      };
+      applyWalk();
+      return;
+    }
     controls.target.set(cx, 0, cz);
     camera.position.set(cx + span * 0.85, span * 0.95, cz + span * 0.85);
     controls.update();
@@ -524,12 +826,79 @@ export function createView3d(canvas, store, ui) {
     return renderer.domElement.toDataURL("image/png");
   }
 
+  function zoomBy(factor) {
+    const next = Number(factor) || 1;
+    if (mode === "walk") {
+      camera.fov = clamp(camera.fov / next, 18, 80);
+      camera.updateProjectionMatrix();
+      return;
+    }
+    const offset = camera.position.clone().sub(controls.target);
+    const length = offset.length();
+    if (length < 1) return;
+    offset.setLength(clamp(length / next, 400, 80000));
+    camera.position.copy(controls.target).add(offset);
+    controls.update();
+  }
+
+  canvas.addEventListener("wheel", (event) => {
+    if (mode !== "walk" || !walk) return;
+    event.preventDefault();
+    zoomBy(event.deltaY > 0 ? 0.9 : 1.12);
+  }, { passive: false });
+  function moveKey(event) {
+    if (event.code === "Numpad8") return "arrowup";
+    if (event.code === "Numpad2") return "arrowdown";
+    if (event.code === "Numpad4") return "arrowleft";
+    if (event.code === "Numpad6") return "arrowright";
+    const key = event.key.toLowerCase();
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "q", "e"].includes(key)) return key;
+    return "";
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (mode !== "walk") return;
+    if (document.querySelector("dialog[open]")) return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select")) return;
+    if (event.key === "Control") {
+      turnModifier = true;
+      return;
+    }
+    if (event.altKey || event.metaKey) return;
+    if (event.ctrlKey && event.key.toLowerCase() === "w") {
+      event.preventDefault();
+      return;
+    }
+    if (event.key.toLowerCase() === "shift") {
+      held.add("shift");
+      return;
+    }
+    const key = moveKey(event);
+    const withControl = key === "arrowleft" || key === "arrowright" || key === "arrowup" || key === "arrowdown" || key === "q" || key === "e";
+    if (event.ctrlKey && !withControl) return;
+    if (!key) return;
+    if (event.ctrlKey) turnModifier = true;
+    held.add(key);
+    if (event.shiftKey) held.add("shift");
+    event.preventDefault();
+  });
+  window.addEventListener("keyup", (event) => {
+    if (event.key === "Control") turnModifier = false;
+    const key = moveKey(event);
+    if (key) held.delete(key);
+    held.delete(event.key.toLowerCase());
+    if (!event.shiftKey) held.delete("shift");
+  });
+  window.addEventListener("blur", () => {
+    held.clear();
+    turnModifier = false;
+  });
   window.addEventListener("resize", resize);
   store.subscribe(rebuild);
   resize();
   rebuild();
   fit();
-  frame();
+  frame(performance.now());
 
   function getPose() {
     return {
@@ -547,7 +916,19 @@ export function createView3d(canvas, store, ui) {
     if (!pose) return;
     camera.position.set(pose.px, pose.py, pose.pz);
     controls.target.set(pose.tx, pose.ty, pose.tz);
-    setMode(pose.mode || "sky");
+    mode = pose.mode === "walk" ? "walk" : "sky";
+    if (mode === "walk") {
+      controls.enabled = false;
+      walk = walkFromCamera();
+      applyWalk();
+    } else {
+      walk = null;
+      look = null;
+      controls.enabled = true;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.update();
+      syncSpinRoom();
+    }
   }
 
   function setSelection(next) {
@@ -560,6 +941,11 @@ export function createView3d(canvas, store, ui) {
     const hit = rayHit(event);
     if (!hit) {
       blank = selection ? { x: event.clientX, y: event.clientY } : null;
+      if (mode === "walk" && walk) {
+        look = { x: event.clientX, y: event.clientY, yaw: walk.yaw, pitch: walk.pitch };
+        event.stopImmediatePropagation();
+        try { canvas.setPointerCapture(event.pointerId); } catch { /* capture is optional */ }
+      }
       return;
     }
     blank = null;
@@ -608,6 +994,12 @@ export function createView3d(canvas, store, ui) {
   }, true);
 
   canvas.addEventListener("pointermove", (event) => {
+    if (look && walk) {
+      walk.yaw = look.yaw - (event.clientX - look.x) * 0.005;
+      walk.pitch = clamp(look.pitch - (event.clientY - look.y) * 0.004, -1.05, 0.7);
+      applyWalk();
+      return;
+    }
     if (slide) {
       const plan = store.get();
       const entry = plan.items.find((row) => row.id === slide.id);
@@ -668,7 +1060,7 @@ export function createView3d(canvas, store, ui) {
   canvas.addEventListener("pointerup", endGesture);
   canvas.addEventListener("pointercancel", endGesture);
 
-  return { setMode, resize, fit, getPose, setPose, capture, setSelection };
+  return { setMode, resize, fit, zoomBy, getPose, setPose, capture, setSelection, toggleDoors };
 }
 
 function roomFor(entry, plan) {
@@ -681,6 +1073,26 @@ function roomFor(entry, plan) {
     if (pointInRoom(room, entry.x, entry.y)) return room;
   }
   return null;
+}
+
+function drawStar(ctx, x, y) {
+  const outer = 7;
+  const inner = 3;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+    const radius = i % 2 === 0 ? outer : inner;
+    const px = x + Math.cos(angle) * radius;
+    const py = y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#e10600";
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1.5;
+  ctx.fill();
+  ctx.stroke();
 }
 
 function clamp(value, min, max) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NEOSUPO★STAR β5</title>
-  <link rel="stylesheet" href="css/app.css?v=20261027l" />
+  <link rel="stylesheet" href="css/app.css?v=20261027m" />
   <script type="importmap">
   {
     "imports": {
@@ -20,7 +20,7 @@
       <button type="button" data-tab="layout" class="active" title="間取設定">間取</button>
       <button type="button" data-tab="items" title="アイテム配置">配置</button>
       <button type="button" data-tab="power" title="配電管理">配電</button>
-      <button type="button" data-tab="present" title="プレゼンテーション設定">発表</button>
+      <button type="button" data-tab="present" title="報告の設定">報告</button>
     </nav>
     <button id="help" type="button" class="rail-help" title="操作説明">ヘルプ</button>
   </aside>
@@ -50,7 +50,7 @@
         <canvas id="view3d" hidden></canvas>
         <canvas id="walk-map" width="200" height="150" hidden aria-label="歩行中の平面図" title="クリックした場所へ移動"></canvas>
         <div class="float-tools" id="float-tools">
-          <button type="button" id="fold-tools" class="fold" aria-expanded="true" aria-controls="float-body">しまう</button>
+          <button type="button" id="fold-tools" class="fold" aria-expanded="true" aria-controls="float-body">閉じる</button>
           <div id="float-body">
             <div class="tool-group">
               <button type="button" id="mode-2d" class="active">DRAW</button>
@@ -95,6 +95,7 @@
   <dialog id="dialog-list">
     <form method="dialog">
       <h2>プラン一覧</h2>
+      <p id="plan-more" class="note" hidden>一覧は更新が新しい10件です。それより前のプランもブラウザに残しています。</p>
       <div id="plan-rows"></div>
       <button value="close" type="submit">閉じる</button>
     </form>
@@ -123,12 +124,12 @@
         <li>DRAW と 3D を切り替えます。3D の Sky はドラッグで見下ろし、右ドラッグで移動、ホイールと拡大・縮小で寄り引きします。Walk は目の高さで、ドラッグで見回します。Q で左、E で右を向きます。Ctrl を押しながらテンキーの 4・6（または左右の矢印）でも向きが変わり、Ctrl を離すと左右に歩きます。矢印キー、テンキーの 8 2 4 6、または W A S D で歩き、Shift で速く歩きます。ホイールと拡大・縮小でも寄り引きします。器具をクリックすると選べます。何もないところをクリックすると選択が外れます。選んだ器具をドラッグすると図面の横方向に動き、足元の円をドラッグすると床に垂直な軸で15度ずつ回ります。幅・奥行・高さは左の欄です。</li>
         <li>ロックすると、その器具の移動、回転、削除、寸法の変更が止まります。選択と解除はできます。</li>
         <li>空いた場所をドラッグすると図面全体が動きます。右ドラッグでも移動できます。Shift を押しながら空いた場所をドラッグすると複数選択です。</li>
-        <li>左の部屋パネルは「パネルを閉じる」で隠せます。図面下の操作は「しまう」で隠せます。戻すときは「パネル」と「操作」です。</li>
+        <li>左の部屋パネルは「パネルを閉じる」で隠せます。図面下の操作は「閉じる」で隠せます。戻すときは「パネル」と「操作」です。</li>
         <li>Delete で削除、Ctrl+Z / Ctrl+Y で元に戻す・やり直す、Ctrl+C または Ctrl+D で複製、Ctrl+G でグループです。</li>
         <li>アイテム配置の左開き・右開き・両開き・押し戸・引き戸は、壁をクリックすると床までのドアになります。左開きと右開きは部屋の内側から見た吊元です。押し戸は外側へ開きます。置いたあとは選択・移動になり、続けて置くときはもう一度部品を選びます。</li>
         <li>間取設定の壁抜き・開口部・腰壁でも壁に穴を開けられます。開口を選んで建具を付けると、ドアは床まで開きます。</li>
         <li>単価を入れるとプラン詳細の見積に出ます。空欄は未設定のままです。</li>
-        <li>プレゼンテーションで視点、プラン全体の明るさ、画像の書き出しを使います。照明はスイッチと 10 段階です。</li>
+        <li>報告で視点、プラン全体の明るさ、画像の書き出しを使います。照明はスイッチと 10 段階です。</li>
         <li>配電管理では、分電盤・ブレーカー・コンセント・手元開閉器を図面に置きます。記号はこのタブのときだけ表示されます。回路を選ぶとその接続だけ線で示します。専用・一般・予備は左の確認に出ます。</li>
         <li>Excel書出とExcel読込がデータベースです。部屋は1セル10cmのマス、機材とドアの弧は図形です。配電は配電シートが正データです。斜めと円弧の壁はマスでは段差になります。位置の正データは配置データです。</li>
       </ol>
@@ -140,6 +141,6 @@
   <div id="print-sheet"></div>
   <script src="vendor/jszip.min.js?v=20261022w"></script>
   <script src="vendor/exceljs.min.js?v=20261022w"></script>
-  <script type="module" src="main.js?v=20261027p"></script>
+  <script type="module" src="main.js?v=20261027s"></script>
 </body>
 </html>

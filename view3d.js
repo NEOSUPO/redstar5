@@ -373,7 +373,11 @@ export function createView3d(canvas, store, ui) {
         }))
         .filter((cut) => cut.b - cut.a > 20 && cut.top - cut.bottom > 20);
       const boxes = wallPieces(0, wall.length, lift, height, mergeCuts(cuts));
-      for (const box of boxes) placeWallBox(wall, box, thickness, material, joins[index], joins[(index + 1) % room.points.length]);
+      const openEnds = {
+        start: wallEndOpen(plan, room, index - 1, true, thickness, ceiling),
+        end: wallEndOpen(plan, room, index + 1, false, thickness, ceiling),
+      };
+      for (const box of boxes) placeWallBox(wall, box, thickness, material, joins[index], joins[(index + 1) % room.points.length], openEnds);
     }
     for (let index = 0; index < joins.length; index += 1) {
       const join = joins[index];
@@ -383,7 +387,7 @@ export function createView3d(canvas, store, ui) {
     }
   }
 
-  function placeWallBox(wall, box, thickness, material, startJoin, endJoin) {
+  function placeWallBox(wall, box, thickness, material, startJoin, endJoin, openEnds) {
     const len = box.len;
     const steps = wall.arc ? Math.max(1, Math.ceil(len / 220)) : 1;
     const span = box.mid - len / 2;
@@ -413,14 +417,16 @@ export function createView3d(canvas, store, ui) {
       };
       const left = endOf(a, a <= 1);
       const right = endOf(b, false);
-      const o0 = left.cap && startJoin ? startJoin.vertex : left.outer;
-      const i0 = left.cap && startJoin ? joinInner(startJoin, "start") : left.inner;
-      const o1 = b >= wall.length - 1 && endJoin ? endJoin.vertex : right.outer;
-      const i1 = b >= wall.length - 1 && endJoin ? joinInner(endJoin, "end") : right.inner;
+      const startJoined = left.cap && startJoin && !openEnds?.start;
+      const endJoined = b >= wall.length - 1 && endJoin && !openEnds?.end;
+      const o0 = startJoined ? startJoin.vertex : left.outer;
+      const i0 = startJoined ? joinInner(startJoin, "start") : left.inner;
+      const o1 = endJoined ? endJoin.vertex : right.outer;
+      const i1 = endJoined ? joinInner(endJoin, "end") : right.inner;
       if (polygonArea([o0, i0, i1, o1]) < 8) continue;
       addWallPrism(o0, i0, i1, o1, y0, y1, material, {
-        start: !(left.cap && startJoin),
-        end: !(b >= wall.length - 1 && endJoin),
+        start: !startJoined,
+        end: !endJoined,
       });
     }
   }
@@ -446,6 +452,18 @@ export function createView3d(canvas, store, ui) {
   function joinInner(join, side) {
     if (join.miter) return join.inner;
     return side === "start" ? join.innerB : join.innerA;
+  }
+
+  function wallEndOpen(plan, room, edgeIndex, atEnd, thickness, ceiling) {
+    const count = room.points.length;
+    const index = ((edgeIndex % count) + count) % count;
+    const edge = edgeGeometry(room, index);
+    const limit = ceiling - 80;
+    return cutsForWall(plan, room, index).some((cut) => {
+      const reaches = atEnd ? cut.b > edge.length - thickness - 20 : cut.a < thickness + 20;
+      const sill = Number(cut.sill) || 0;
+      return reaches && sill < 80 && sill + (Number(cut.h) || 0) >= limit;
+    });
   }
 
   function cornerCutOpen(plan, room, vertexIndex, thickness) {

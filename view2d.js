@@ -216,7 +216,12 @@ export function createView2d(canvas, store, ui) {
       const gaps = cutsForWall(plan, room, index).filter((cut) => cut.walkable);
       const startJoin = joins[index];
       const endJoin = joins[(index + 1) % room.points.length];
-      for (const [from, to] of subtractSpans(0, edge.length, gaps)) fillWallPiece(edge, from, to, t, startJoin, endJoin);
+      const ceiling = Math.max(400, Number(plan.settings?.ceiling) || 2700);
+      const openEnds = {
+        start: wallEndOpen(plan, room, index - 1, true, t, ceiling),
+        end: wallEndOpen(plan, room, index + 1, false, t, ceiling),
+      };
+      for (const [from, to] of subtractSpans(0, edge.length, gaps)) fillWallPiece(edge, from, to, t, startJoin, endJoin, openEnds);
     }
     for (let index = 0; index < joins.length; index += 1) {
       const join = joins[index];
@@ -269,6 +274,17 @@ export function createView2d(canvas, store, ui) {
     };
   }
 
+  function wallEndOpen(plan, room, edgeIndex, atEnd, thickness, ceiling) {
+    const count = room.points.length;
+    const index = ((edgeIndex % count) + count) % count;
+    const edge = edgeGeometry(room, index);
+    return cutsForWall(plan, room, index).some((cut) => {
+      const reaches = atEnd ? cut.b > edge.length - thickness - 20 : cut.a < thickness + 20;
+      const sill = Number(cut.sill) || 0;
+      return reaches && sill < 80 && sill + (Number(cut.h) || 0) >= ceiling - 80;
+    });
+  }
+
   function cornerCutOpen(plan, room, vertexIndex, thickness) {
     const count = room.points.length;
     const prevIndex = (vertexIndex - 1 + count) % count;
@@ -304,7 +320,7 @@ export function createView2d(canvas, store, ui) {
     return pieces;
   }
 
-  function fillWallPiece(edge, from, to, thickness, startJoin, endJoin) {
+  function fillWallPiece(edge, from, to, thickness, startJoin, endJoin, openEnds) {
     if (edge.arc) {
       const length = Math.max(1, to - from);
       const steps = Math.max(6, Math.ceil(length / 70));
@@ -325,8 +341,8 @@ export function createView2d(canvas, store, ui) {
       const point = edge.pointAt(along);
       return { x: point.x + normal.x * thickness, y: point.y + normal.y * thickness };
     };
-    const atStart = from <= 1 && startJoin?.miter;
-    const atEnd = to >= edge.length - 1 && endJoin?.miter;
+    const atStart = from <= 1 && startJoin?.miter && !openEnds?.start;
+    const atEnd = to >= edge.length - 1 && endJoin?.miter && !openEnds?.end;
     const inner0 = atStart ? startJoin.inner : offsetAt(from);
     const inner1 = atEnd ? endJoin.inner : offsetAt(to);
     const poly = [edge.pointAt(from), edge.pointAt(to), inner1];

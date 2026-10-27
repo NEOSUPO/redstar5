@@ -6,7 +6,7 @@ import { attachLeaf, clampOpenings, hingeForHand, noteRemovedVertex, resizeOpeni
 import { bindPower, powerPanel } from "./power.js?v=20261027m";
 import { createStore, uid } from "./store.js?v=20261026d";
 import { seatItems } from "./surface.js?v=20261022l";
-import { createView2d } from "./view2d.js?v=20261027m";
+import { createView2d } from "./view2d.js?v=20261027n";
 
 const store = createStore();
 const ui = createController();
@@ -42,7 +42,7 @@ function setFold(kind, folded) {
     document.querySelector("#float-tools").classList.toggle("folded", folded);
     const button = document.querySelector("#fold-tools");
     button.setAttribute("aria-expanded", String(!folded));
-    button.textContent = folded ? "操作" : "しまう";
+    button.textContent = folded ? "操作" : "閉じる";
   }
   resizeViews();
 }
@@ -184,7 +184,7 @@ async function setMode(next) {
   document.querySelector("#mode-3d").classList.toggle("active", next === "3d");
   document.querySelector("#view-toggle").hidden = next !== "3d";
   if (next === "3d" && !view3d) {
-    const mod = await import("./view3d.js?v=20261027p");
+    const mod = await import("./view3d.js?v=20261027q");
     view3d = mod.createView3d(document.querySelector("#view3d"), store, ui);
     view3d.setSelection(ui.selection);
   }
@@ -935,9 +935,26 @@ function ungroupSelection() {
   });
 }
 
+function visiblePlans() {
+  const all = store.list().slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const shown = all.slice(0, 10);
+  const active = store.get();
+  if (active && !shown.some((plan) => plan.id === active.id)) {
+    const current = all.find((plan) => plan.id === active.id);
+    if (current) {
+      shown.pop();
+      shown.unshift(current);
+    }
+  }
+  return { shown, kept: Math.max(0, all.length - shown.length) };
+}
+
 function renderPlanList() {
+  const { shown, kept } = visiblePlans();
+  const more = document.querySelector("#plan-more");
+  if (more) more.hidden = kept === 0;
   const host = document.querySelector("#plan-rows");
-  host.innerHTML = store.list().map((plan) => `
+  host.innerHTML = shown.map((plan) => `
     <div class="plan-row">
       <button type="button" data-open="${plan.id}">${escapeHtml(plan.name)}</button>
       <button type="button" data-copy="${plan.id}">複製</button>

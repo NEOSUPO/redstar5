@@ -1,11 +1,11 @@
-import { CATALOG, lookupItem } from "./catalog.js";
+import { CATALOG, lookupItem } from "./catalog.js?v=20261028d";
 import { centroid, distanceToBoundary, outlinePoints, pointInRoom } from "./geometry.js";
 import { hingePoint, leafSwing, openingCenter } from "./openings.js?v=20261022f";
-import { powerToRows, rowsToPower } from "./power.js?v=20261026d";
+import { powerToRows, rowsToPower } from "./power.js?v=20261028d";
 import { CELL_MM } from "./schema.js";
-import { clearMissingHosts } from "./surface.js";
+import { clearMissingHosts } from "./surface.js?v=20261028d";
 
-const FURNITURE = new Set(["bench", "sink", "balance", "chair", "door", "door-right", "door-double", "door-push", "door-slide", "window", "kitchen", "bath", "toilet", "wash", "pillar", "beam"]);
+const FURNITURE = new Set(["bench", "sink", "balance", "chair", "door", "door-right", "door-double", "door-push", "door-slide", "window", "toilet", "wash", "pillar", "beam"]);
 const OUTLETS = new Set(["outlet", "reel"]);
 const UTILITIES = new Set(["pipe", "elbow", "board"]);
 
@@ -703,7 +703,7 @@ function familyOf(entry, cat) {
   const text = Array.isArray(cat?.category) ? cat.category.join("/") : String(entry.category || "");
   if (text.includes("コンセント")) return "コンセント";
   if (text.includes("ユーティリティ")) return "ユーティリティ";
-  if (/ファニチャー|住宅|ドア|什器/.test(text)) return "什器";
+  if (/ファニチャー|設備|ドア|什器/.test(text)) return "什器";
   return "機器";
 }
 

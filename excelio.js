@@ -1,4 +1,4 @@
-import { POWER_HEADERS } from "./power.js?v=20261026d";
+import { POWER_HEADERS } from "./power.js?v=20261028d";
 import {
   DRAWING_HEADERS,
   EQUIPMENT_HEADERS,

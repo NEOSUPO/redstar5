@@ -1,4 +1,4 @@
-const SURFACE_IDS = new Set(["bench", "sink", "balance", "kitchen"]);
+const SURFACE_IDS = new Set(["bench", "sink", "balance"]);
 const KEEP_ON_FLOOR = new Set(["hood", "cabinet", "bsc", "clean", "chair", "shower", "pillar"]);
 const OVERLAP = 0.3;
 

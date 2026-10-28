@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { lookupItem } from "./catalog.js";
+import { lookupItem } from "./catalog.js?v=20261028d";
 import { centroid, edgeGeometry, outlinePoints, pointInRoom } from "./geometry.js?v=20261022d";
 import { cutsForWall, hingePoint, leafSwing, openingCenter } from "./openings.js?v=20261022f";
-import { snapValue } from "./store.js?v=20261022l";
-import { counterTop, seatItems, shiftGuests } from "./surface.js?v=20261022l";
+import { snapValue } from "./store.js?v=20261028d";
+import { counterTop, seatItems, shiftGuests } from "./surface.js?v=20261028d";
 
 const BRIGHTNESS = [0.45, 0.85, 1.25];
 

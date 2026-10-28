@@ -1,7 +1,7 @@
 import { ensureRoom, nearestEdge } from "./geometry.js";
 import { migrateOpenings } from "./openings.js?v=20261022f";
-import { normalizePower } from "./power.js?v=20261026d";
-import { clearMissingHosts } from "./surface.js";
+import { normalizePower } from "./power.js?v=20261028d";
+import { clearMissingHosts } from "./surface.js?v=20261028d";
 
 const STORAGE_KEY = "neosupo-star-beta5-plans-v1";
 

@@ -1,12 +1,12 @@
-import { bookToPlan, planToBook } from "./book.js?v=20261026d";
+import { bookToPlan, planToBook } from "./book.js?v=20261028d";
 import { insertPoint, removePoint, roomArea, scaleRoom, setEdgeArc } from "./geometry.js?v=20261022d";
-import { ROOM_TYPES, categoryTree, lookupItem } from "./catalog.js";
-import { readTables, writeWorkbook } from "./excelio.js?v=20261026d";
+import { ROOM_TYPES, catalogTemplateCsv, categoryTree, importUserCatalog, loadSharedCatalog, lookupItem } from "./catalog.js?v=20261028d";
+import { readTables, writeWorkbook } from "./excelio.js?v=20261028d";
 import { attachLeaf, clampOpenings, hingeForHand, noteRemovedVertex, resizeOpening, splitEdgeOpenings } from "./openings.js?v=20261022f";
-import { bindPower, powerPanel } from "./power.js?v=20261027m";
-import { createStore, uid } from "./store.js?v=20261026d";
-import { seatItems } from "./surface.js?v=20261022l";
-import { createView2d } from "./view2d.js?v=20261027n";
+import { bindPower, powerPanel } from "./power.js?v=20261028d";
+import { createStore, uid } from "./store.js?v=20261028d";
+import { seatItems } from "./surface.js?v=20261028d";
+import { createView2d } from "./view2d.js?v=20261028d";
 
 const store = createStore();
 const ui = createController();
@@ -172,6 +172,7 @@ ui.subscribe(() => {
   view3d?.setSelection(ui.selection);
 });
 store.subscribe(syncChrome);
+await loadSharedCatalog();
 renderSidebar();
 syncChrome(store.get());
 requestAnimationFrame(() => view2d.fit());
@@ -184,7 +185,7 @@ async function setMode(next) {
   document.querySelector("#mode-3d").classList.toggle("active", next === "3d");
   document.querySelector("#view-toggle").hidden = next !== "3d";
   if (next === "3d" && !view3d) {
-    const mod = await import("./view3d.js?v=20261027q");
+    const mod = await import("./view3d.js?v=20261028d");
     view3d = mod.createView3d(document.querySelector("#view3d"), store, ui);
     view3d.setSelection(ui.selection);
   }
@@ -282,6 +283,21 @@ function bindSidebar() {
     else renderSidebar();
   });
   sidebar.querySelector("#add-custom")?.addEventListener("click", addCustomItem);
+  sidebar.querySelector("#catalog-template")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    downloadText(catalogTemplateCsv(), "catalog-template.csv");
+  });
+  sidebar.querySelector("#import-catalog")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const result = importUserCatalog(await file.text());
+    renderSidebar();
+    const resultNote = sidebar.querySelector("#catalog-result");
+    if (resultNote) resultNote.textContent = result.added
+      ? `${result.added}件をこのブラウザに追加しました。記入例の行は読み込んでいません。`
+      : "追加できる行がありません。記入例の行と、共通カタログと同じidは読み込みません。";
+  });
   sidebar.querySelector("#brightness")?.addEventListener("change", (event) => {
     store.update((plan) => {
       plan.settings.brightness = Number(event.target.value);
@@ -385,8 +401,10 @@ function itemPanel() {
       <label>色<input id="custom-color" type="color" value="#d9d3c5" /></label>
       <label>単価<input id="custom-price" type="number" min="0" placeholder="未設定" /></label>
       <label class="check"><input id="custom-light" type="checkbox" /> 照明</label>
-      <label class="check"><input id="custom-home" type="checkbox" /> 住宅設備</label>
+      <label class="check"><input id="custom-home" type="checkbox" /> 設備</label>
       <button type="button" id="add-custom">カタログに追加</button>
+      <label>記入例を読み込む<input id="import-catalog" type="file" accept=".csv,text/csv" /></label>
+      <p id="catalog-note" class="note"><span id="catalog-result"></span>記入例の読み込みはこのブラウザだけに追加します。記入例の行は読み込みません。ファイルはUTF-8のCSVです。<a href="#" id="catalog-template">記入例をダウンロード</a></p>
     </div>
     ${propsPanel()}
   `;
@@ -1113,6 +1131,12 @@ async function importExcel(file) {
 
 function safeName(name) {
   return String(name || "plan").replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 40) || "plan";
+}
+
+function downloadText(text, filename) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  downloadUrl(url, filename);
+  URL.revokeObjectURL(url);
 }
 
 function downloadUrl(url, filename) {

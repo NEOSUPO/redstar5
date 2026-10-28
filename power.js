@@ -1,7 +1,7 @@
 import { nearestEdge, pointInRoom } from "./geometry.js?v=20261022d";
 
 const PINK = "#d4145a";
-const BENCHES = new Set(["bench", "sink", "balance", "kitchen"]);
+const BENCHES = new Set(["bench", "sink", "balance"]);
 
 export const POWER_SYMBOLS = [
   { id: "flush-1p100-15", kind: "flush", voltage: "1p100", amp: 15, label: "埋め込み 単相100V 15A" },

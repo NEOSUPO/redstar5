@@ -333,6 +333,7 @@ input[type="color"] { height: 36px; padding: 2px; }
   #print-sheet { display: block; padding: 12px; color: #000; }
 }
 .note { color: #5d6f6c; font-size: 11px; line-height: 1.5; }
+.note a { color: var(--blue); }
 .power-warn { color: #8a4b00; background: #fff6e8; border-radius: 10px; padding: 6px 8px; }
 .phase-track { height: 8px; background: #e3eeea; margin: 2px 0 8px; border-radius: 999px; overflow: hidden; }
 .phase-track span { display: block; height: 8px; background: var(--blue); }

@@ -1,4 +1,4 @@
-import { lookupItem } from "./catalog.js";
+import { lookupItem } from "./catalog.js?v=20261028d";
 import {
   centroid,
   edgeGeometry,
@@ -25,9 +25,9 @@ import {
   openingCenter,
   syncLeaves,
 } from "./openings.js?v=20261022f";
-import { addBreaker, addOutlet, addPanel, drawPower, hitPower, placeAnchor, symbolById } from "./power.js?v=20261027m";
-import { snapValue, uid } from "./store.js?v=20261022l";
-import { seatItems, shiftGuests } from "./surface.js?v=20261022l";
+import { addBreaker, addOutlet, addPanel, drawPower, hitPower, placeAnchor, symbolById } from "./power.js?v=20261028d";
+import { snapValue, uid } from "./store.js?v=20261028d";
+import { seatItems, shiftGuests } from "./surface.js?v=20261028d";
 
 const images = new Map();
 let notifyUnderlay = () => {};

@@ -278,6 +278,13 @@ h2 { margin: 0; font-size: 11px; letter-spacing: 0.12em; color: var(--teal); }
   border-radius: 16px;
   box-shadow: 0 1px 0 rgba(6, 56, 64, 0.04);
 }
+.side-block > .tool-row {
+  flex: 1 0 100%;
+  display: flex;
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
 .side-block > h2,
 .side-block > .note,
 .side-block > p,

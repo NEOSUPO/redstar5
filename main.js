@@ -330,8 +330,10 @@ function layoutPanel() {
   const underlay = plan.underlay;
   return `
     <div class="side-block">
+      <div class="tool-row">
+        <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
+      </div>
       <h2>部屋</h2>
-      <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
       ${rooms}
     </div>
     <div class="side-block">
@@ -380,8 +382,10 @@ function itemPanel() {
   const plan = store.get();
   return `
     <div class="side-block">
+      <div class="tool-row">
+        <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
+      </div>
       <h2>アイテム</h2>
-      <button type="button" id="select-tool" class="${ui.tool === "select" ? "active" : ""}">選択 / 移動</button>
       <div class="tree">${renderTree(categoryTree(plan.customItems))}</div>
     </div>
     <div class="side-block">
